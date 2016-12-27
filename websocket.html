@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>websocket</title>
+</head>
+<body>
+<p>
+    <div>
+        <h4>1. 鸭式辨型</h4>
+        <ul>
+            <li>function isArray (value) {</li>
+            <li>if(typeof Array.isArray === 'function') {   return Array.isArray(value); }</li>
+            <li>else {return Object.prototype.toString.call(value)==='[object Array]';}</li>
+            <li>}</li>
+        </ul>
+        <p>这种检测方法依赖一个事实，数组是唯一一个包含 sort()方法的对象。如果传入的参数是一个包含sort()方法的对象。则返回true</p>
+    </div>
+
+    <h4>2. polyfill 解决兼容问题  ‘腻子’ 解决API兼容问题</h4>
+
+    
+    <div>
+        <h4>3. 为什么要减少HTTP请求次数</h4>
+        <p>HTTP请求头的数据量 ：每次请求都会带上一些额外的信息进行传输，当请求的资源很小，比如1个不到1k的图标，可能request带的数据比实际图标的数量还大。所以当请求越多的时候，在网络上传输的数据自然就多，传输速度自然就慢下来了。</p>
+        <p>HTTP链接的开销：相比request头部多余的数据，HTTP链接的开销则更加严重，一个用户输入一个url到下载内容到客户端需要经过那些阶段</p>
+        <ul>
+            <li>1.域名解析</li>
+            <li>2.开启TCP链接</li>
+            <li>3.发送请求</li>
+            <li>4. 等待（主要包括网络延迟和服务器处理时间）</li>
+            <li>5. 下载资源</li>
+            <li>6. 文件解析执行时间</li>
+        </ul>
+    </div>
+    <div>
+        <h4>问题 ：</h4>
+        <p>1.HTTP1.1，keep-alive是默认的，而且现在浏览器都有DNS缓存，那么对于‘100条请求’和‘对100条请求合并为1条请求’来说DNS寻址由于DNS缓存-无差别      答：即使有DNS缓存，浏览器也需要查找缓存，多个请求就需要查找多次，而且缓存有可能被清空，这样多个请求的DNS查询有可能花费更多时间。</p>
+        <p>2.3次握手由于有keep-alive，一条和一百条都只需要一次TCP握手-无差别
+
+        答：TCP握手时间确实没差别，但是时间性能上差别非常大。HTTP1.1协议规定请求只能串行发送，也就是HTTP性能最差和最让人诟病的地方，也就是说100个请求必须请求必须一次逐个发送。弟80个请求必须依赖第79个请求正常返回之后才能发送。这样就平白无故多出了99个网络RTT（网络延迟）。合并请求比keep-alive下不合并请求理论上能节省大概RTT*(N-1)的加载时间。由此可见，网络延迟其实是在keep-alive情况下需要请求合并的主要动力
+         
+        比如一个页面有100个请求，第99个请求时，TCP丢了一个包，TCP自然会重传，重传成功后，浏览器才能去的页面的响应内容，然后渲染和展示页面，整个页面的加载时间延迟T1时间。在此之前用户没有得到相应的页面，但如果建立100个TCP链接呢，第99个请求出现丢包，那也只影响了第99个资源的展现，前面接收到的98个资源依然能正常加载，不会导致整个页面无法加载。</p>
+        <p>4. http://chabudai.sakura.ne.jp/blogparts/honehoneclock/honehone_clock_tr.swf</p>
+    </div>
+
+======12.27
+    <div>
+        <h4>1.websocket 是啥？  h5新增的协议</h4>
+        <p>协议 、 是在浏览器和服务器之间建立一个不受限的双向通信的通道。【服务器也可以随时向浏览器发送消息】传统的HTTP协议，是一个请求一个响应，请求必须有浏览器发给服务器，服务器才能相应这个请求，再把数据传给浏览器。【浏览器不请求，服务器不响应，也就无法主动发数据给浏览器】</p>
+        <ul>websocket 协议 是在HTTP协议来建立链接的。webstock链接必须由浏览器发起，因为请求协议是一个标准的HTTP请求
+            <li>
+                <ul>
+                    <li>GET ws://localhost:3000/ws/chat HTTP/1.1</li>
+                    <li>Host: localhost</li>
+                    <li>Upgrade: websocket</li>
+                    <li>Connection: Upgrade</li>
+                    <li>origin: http://localhost:3000</li>
+                    <li>Sec-WebSocket-Key: client-random-string</li>
+                    <li>Sec-WebSocket-Version: 13 </li>
+                </ul>
+                <p>GET请求的地址不是类似/path/,而是以ws://开头的地址；
+                请求头Upgrade:websocket和Connection:Upgrade表示这个链接将要被转换为WebSocket链接
+                Sec-websocket-Key 用于标识这个连接，并非用于加密数据
+                Sec-webSocket-Version 指定了webSocket的协议版本号</p>
+            </li>
+            <li>1.2 如果服务器接受这个请求，返回对应响应
+                <ul>
+                    <li>HTTP/1.1 101 Switching Protocols</li>
+                    <li>Upgrade:websocket</li>
+                    <li>Connection: Upgrade</li>
+                    <li>Sec-WebSocket-Accept: server-random-string</li>
+                </ul>
+                <p>101:代表本次链接的HTTP协议将要被修改，更改后的协议是Upgrade：websocket指的是websocket协议</p>
+            </li>
+            <li>1.3链接建立成功。浏览器和服务器可以随时主动发送消息给对方。消息两种 1.文本 2.二进制 【通常发送json格式的文本，浏览器也好处理】</li>
+            <li>1.4为啥websocket链接可以实现双通信而http 链接不行呢？  HTTP协议是建立在Tcp协议之上，Tcp协议本身是实现了全双工通信，但是HTTP协议的请求-应答机制限制了全双通信。websocket链接建立后，只是简单规定下，接下来，通信就不用HTTP，直接互相发数据</li>
+            <li>1.5安全的websocket链接机制和https相似。首先，浏览器wss://创建websocket链接时，会先通过https创建安全的链接，然后，该https链接升级为websocket链接，底层通信走的依然是安全的ssl/tls协议</li>
+            <li> 1.6 浏览器 
+                很显然，要支持websocket通信，浏览器要支持这个协议，才能发出wss://xxx请求
+                chrome Firefox IE>10 Sarafi>=6 Android >=4.4 IOS>=8
+            </li>
+            <li>
+                1.7 服务器
+                由于websocket是一个协议，服务器具体怎么实现，取决于所用编程语言和框架本身。Node.js本身支持的协议包括TCP协议和HTTP协议，要支持websocket协议，需要对node.js提供的HTTPServer做额外的开发。已经有若干基于Node.js的稳定可靠的websocket实现，我们直接用npm安装即可使用
+            </li>
+        </ul>
+    </div>
+</body>
+</html>
